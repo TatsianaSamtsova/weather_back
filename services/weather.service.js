@@ -1,60 +1,44 @@
 const axios = require("axios");
 const config = require("../config");
-// const weatherConfig = require("../config/weather.config");
 const db = require("../db");
 const pgp = db.$config.pgp;
 
 class WeatherService {
     async getCityWeather(req, res) {
+        try {
+            const { city } = req.params
 
-        // try {
-        //     const city = req.query.q;
-        //     const units = req.query.units;
-        //
-        //     const response = await axios
-        //         .get(
-        //             `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=${units}&appid=${config.apiKey}`
-        //         )
-        //
-        //     res.status(200).json({
-        //         data: response,
-        //     })
-        //
-        // } catch (err) {
-        //     res.status(400).json({
-        //         message: err,
-        //     })
-        // }
+            const cityWeather = await db.query('SELECT * FROM weather WHERE config_id IN (' +
+                'SELECT config_id FROM config WHERE city_name = $1) ', [city])
 
+            res.status(200).json({
+                data: cityWeather
+            })
 
-        // db.query('SELECT city_name,date FROM weather;')
-        //     .then(rows => {
-        //         console.log(rows);
-        //         res.json(rows)
-        //     })
-        //     .catch(err => {
-        //         console.log(err)
-        //     })
+        } catch (err) {
+            res.status(400).json({
+                message: err,
+            })
+        }
     }
 
     async addCityWeather(req, res) {
         try {
-            const cities = ["Paris","Kiev"]
-            const units = 'metric'
+            const cities = await db.query('SELECT * FROM config;')
+
             new Promise(() => {
-                console.log('test')
 
                 setInterval(async () => {
-                    console.log('test3')
+
                     const promisesOfCities = cities.map(city => new Promise(async () => {
+                      const {config_id, city_name, units} = city
                       const response =  await axios
                             .get(
-                                `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=${units}&appid=${config.apiKey}`
+                                `https://api.openweathermap.org/data/2.5/weather?q=${city_name}&units=${units}&appid=${config.apiKey}`
                             )
-                        console.log('success')
 
                         const setData = {
-                            city_name: city,
+                            config_id: config_id,
                             date: new Date(),
                             description: response.data.weather[0].description,
                             temperature: response.data.main.temp,
@@ -65,7 +49,6 @@ class WeatherService {
                         }
 
                         await db.query(pgp.helpers.insert(setData, null, 'weather'))
-
                     }))
 
                     const response = await Promise.all(promisesOfCities)
@@ -74,7 +57,7 @@ class WeatherService {
                         data: response.data,
                     })
 
-                }, 15000)
+                }, 20000)
             })
 
         } catch (err) {
@@ -83,7 +66,6 @@ class WeatherService {
             })
         }
     }
-
 }
 
 module.exports = new WeatherService()

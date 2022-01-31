@@ -14,8 +14,6 @@ const cn = {
     allowExitOnIdle: true
 };
 
-
 const db = pgp(cn);
-
 
 module.exports = db;
